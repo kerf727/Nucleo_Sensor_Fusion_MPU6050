@@ -37,6 +37,7 @@ void UART_log_error(UART_API *uart, HAL_StatusTypeDef status, char *error_msg);
 void UART_log_value(UART_API *uart, char *value_name, uint32_t value);
 
 // sensor = array[3]
+void UART_print_float(UART_API *uart, float value);
 void UART_print_sensor(UART_API *uart, float *sensor);
 void UART_print_two_sensors(UART_API *uart, float *sensor1, float *sensor2);
 

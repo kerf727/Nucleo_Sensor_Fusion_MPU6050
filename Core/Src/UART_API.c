@@ -124,6 +124,14 @@ void UART_log_value(UART_API *uart, char *value_name, uint32_t value)
 
 
 
+void UART_print_float(UART_API *uart, float value)
+{
+	uart->log_buf_len = sprintf(uart->log_buf, "%.3f\r\n", value);
+	HAL_UART_Transmit(uart->huart, (uint8_t *)uart->log_buf, uart->log_buf_len, HAL_MAX_DELAY);
+}
+
+
+
 void UART_print_sensor(UART_API *uart, float *sensor)
 {
 	uart->log_buf_len = sprintf(uart->log_buf, "%8.3f,%8.3f,%8.3f\r\n",

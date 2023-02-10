@@ -4,5 +4,6 @@
 ../Core/Src/UART_API.c:80:6:UART_println	16	static
 ../Core/Src/UART_API.c:96:6:UART_log_error	24	static
 ../Core/Src/UART_API.c:120:6:UART_log_value	24	static
-../Core/Src/UART_API.c:128:6:UART_print_sensor	56	static
-../Core/Src/UART_API.c:137:6:UART_print_two_sensors	112	static
+../Core/Src/UART_API.c:128:6:UART_print_float	24	static
+../Core/Src/UART_API.c:136:6:UART_print_sensor	56	static
+../Core/Src/UART_API.c:145:6:UART_print_two_sensors	112	static

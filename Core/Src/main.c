@@ -165,6 +165,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+  	/*
   	// Debugging tool - force unstuck
   	if (imu.data_ready_flag && imu.dma_rx_flag)
   	{
@@ -186,22 +187,24 @@ int main(void)
   		comp_filter.roll_rad  = 0.0f;
   		comp_filter.pitch_rad = 0.0f;
   	}
+  	*/
 
   	if (imu.data_ready_flag && !imu.dma_rx_flag)
 		{
 			MPU6050_Read_DMA(&imu);
 			// Debugging
-			stuck_counter = 0;
+//			stuck_counter = 0;
 		}
 
   	if (HAL_GetTick() - timer_log >= LOG_TIME_MS)
 		{
 //			UART_print_sensor(&uart, imu.acc_mps2);
 
-  		float angles[3] = {comp_filter.roll_rad  * RAD_TO_DEG,
-  											 comp_filter.pitch_rad * RAD_TO_DEG,
-												 (float) timer_log / 1000};
-			UART_print_sensor(&uart, angles);
+//  		float angles[3] = {-comp_filter.roll_rad  * RAD_TO_DEG, // reverse polarity for convenience
+//  											  comp_filter.pitch_rad * RAD_TO_DEG,
+//												 (float) timer_log / 1000};
+//			UART_print_sensor(&uart, angles);
+			UART_print_float(&uart, -comp_filter.roll_rad * RAD_TO_DEG);
 
 			timer_log = HAL_GetTick();
 		}
@@ -432,6 +435,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+  	UART_println(&uart, "Error_Handler()");
   }
   /* USER CODE END Error_Handler_Debug */
 }
