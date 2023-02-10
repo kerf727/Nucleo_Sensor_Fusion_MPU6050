@@ -1,0 +1,6 @@
+../Core/Src/MPU6050.c:8:9:MPU6050_Init	48	static
+../Core/Src/MPU6050.c:135:9:MPU6050_Read_DMA	32	static
+../Core/Src/MPU6050.c:152:6:MPU6050_Process_Data	48	static
+../Core/Src/MPU6050.c:203:19:MPU6050_Read_Register_Polling	48	static
+../Core/Src/MPU6050.c:212:19:MPU6050_Read_Registers_Polling	56	static
+../Core/Src/MPU6050.c:221:19:MPU6050_Write_Register_Polling	48	static

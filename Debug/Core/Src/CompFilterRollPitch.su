@@ -1,0 +1,2 @@
+../Core/Src/CompFilterRollPitch.c:3:6:CompFilterRollPitch_Init	32	static
+../Core/Src/CompFilterRollPitch.c:20:6:CompFilterRollPitch_Update	88	static
