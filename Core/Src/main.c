@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -67,6 +68,27 @@ DMA_HandleTypeDef hdma_i2c1_tx;
 
 UART_HandleTypeDef huart2;
 
+/* Definitions for blinkLEDTask */
+osThreadId_t blinkLEDTaskHandle;
+const osThreadAttr_t blinkLEDTask_attributes = {
+  .name = "blinkLEDTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for logOutputTask */
+osThreadId_t logOutputTaskHandle;
+const osThreadAttr_t logOutputTask_attributes = {
+  .name = "logOutputTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for readIMUTask */
+osThreadId_t readIMUTaskHandle;
+const osThreadAttr_t readIMUTask_attributes = {
+  .name = "readIMUTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
+};
 /* USER CODE BEGIN PV */
 
 UART_API uart;
@@ -88,6 +110,10 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+void BlinkLEDTask(void *argument);
+void LogOutputTask(void *argument);
+void ReadIMUTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -161,60 +187,51 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of blinkLEDTask */
+  blinkLEDTaskHandle = osThreadNew(BlinkLEDTask, NULL, &blinkLEDTask_attributes);
+
+  /* creation of logOutputTask */
+  logOutputTaskHandle = osThreadNew(LogOutputTask, NULL, &logOutputTask_attributes);
+
+  /* creation of readIMUTask */
+  readIMUTaskHandle = osThreadNew(ReadIMUTask, NULL, &readIMUTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  	/*
-  	// Debugging tool - force unstuck
-  	if (imu.data_ready_flag && imu.dma_rx_flag)
-  	{
-  		stuck_counter++;
-//  		UART_print(&uart, "sc++");
-  		UART_print_arg(&uart, "sc:%d\r\n", stuck_counter);
-  		if (stuck_counter == 1000)
-  		{
-  			UART_println(&uart, "Forced unstuck.");
-  			stuck_counter = 0;
-  			imu.data_ready_flag = 1;
-  			imu.dma_rx_flag = 0;
-  		}
-  	}
-
-  	// Reset in case it becomes nan
-  	if (comp_filter.roll_rad == NAN || comp_filter.pitch_rad == NAN)
-  	{
-  		comp_filter.roll_rad  = 0.0f;
-  		comp_filter.pitch_rad = 0.0f;
-  	}
-  	*/
-
-  	if (imu.data_ready_flag && !imu.dma_rx_flag)
-		{
-			MPU6050_Read_DMA(&imu);
-			// Debugging
-//			stuck_counter = 0;
-		}
-
-  	if (HAL_GetTick() - timer_log >= LOG_TIME_MS)
-		{
-//			UART_print_sensor(&uart, imu.acc_mps2);
-
-//  		float angles[3] = {-comp_filter.roll_rad  * RAD_TO_DEG, // reverse polarity for convenience
-//  											  comp_filter.pitch_rad * RAD_TO_DEG,
-//												 (float) timer_log / 1000};
-//			UART_print_sensor(&uart, angles);
-			UART_print_float(&uart, -comp_filter.roll_rad * RAD_TO_DEG);
-
-			timer_log = HAL_GetTick();
-		}
-
-  	if (HAL_GetTick() - timer_led >= LED_TIME_MS)
-		{
-  		HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-  		timer_led = HAL_GetTick();
-		}
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -376,10 +393,10 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Channel6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
   /* DMA1_Channel7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 
 }
@@ -421,10 +438,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(MPU6050_INT_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
@@ -432,6 +449,101 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_BlinkLEDTask */
+/**
+  * @brief  Function implementing the blinkLEDTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_BlinkLEDTask */
+void BlinkLEDTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+  	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+    osDelay(LED_TIME_MS);
+  }
+
+  // In case we accidentally exit from task loop
+	osThreadTerminate(NULL);
+
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_LogOutputTask */
+/**
+* @brief Function implementing the logOutputTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LogOutputTask */
+void LogOutputTask(void *argument)
+{
+  /* USER CODE BEGIN LogOutputTask */
+  /* Infinite loop */
+  for(;;)
+  {
+//  	if (imu.data_ready_flag && !imu.dma_rx_flag)
+//		{
+//			MPU6050_Read_DMA(&imu);
+//		}
+
+  	uart.log_buf_len = sprintf(uart.log_buf, "value: %.3f\r\n", -comp_filter.roll_rad * RAD_TO_DEG);
+  	HAL_UART_Transmit(&huart2, (uint8_t *)uart.log_buf, uart.log_buf_len, HAL_MAX_DELAY);
+    osDelay(LOG_TIME_MS);
+  }
+
+  // In case we accidentally exit from task loop
+	osThreadTerminate(NULL);
+
+  /* USER CODE END LogOutputTask */
+}
+
+/* USER CODE BEGIN Header_ReadIMUTask */
+/**
+* @brief Function implementing the readIMUTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_ReadIMUTask */
+void ReadIMUTask(void *argument)
+{
+  /* USER CODE BEGIN ReadIMUTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+
+  // In case we accidentally exit from task loop
+	osThreadTerminate(NULL);
+
+  /* USER CODE END ReadIMUTask */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
