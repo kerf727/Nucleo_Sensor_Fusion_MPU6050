@@ -27,6 +27,8 @@
 #include <string.h>
 #include <math.h>
 
+#include "semphr.h"
+
 #include "MPU6050.h"
 #include "CompFilterRollPitch.h"
 
@@ -102,6 +104,8 @@ uint32_t timer_led = 0;
 // Debugging tool
 uint8_t stuck_counter = 0;
 
+static SemaphoreHandle_t bin_sem = NULL;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,7 +129,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == MPU6050_INT_Pin)
 	{
+		BaseType_t task_woken = pdFALSE;
+
+		// Perform action
 		imu.data_ready_flag = 1;
+
+		// Give semaphore to tell task that new value is ready
+		xSemaphoreGiveFromISR(bin_sem, &task_woken);
+
+		// Exit from ISR (Vanilla FreeRTOS)
+//		portYIELD_FROM_ISR(task_woken);
+
+		// Exit from ISR
+		if (task_woken)
+		{
+			portYIELD_FROM_ISR(task_woken);
+		}
 	}
 }
 
@@ -184,6 +203,13 @@ int main(void)
 
 	CompFilterRollPitch_Init(&comp_filter, COMP_FILTER_ALPHA, SAMPLE_TIME_MS, LPF_ACC_ALPHA, LPF_GYR_ALPHA);
 	HAL_Delay(10);
+
+	bin_sem = xSemaphoreCreateBinary();
+
+	if (bin_sem == NULL)
+	{
+		// force reboot?
+	}
 
   /* USER CODE END 2 */
 
@@ -464,6 +490,7 @@ void BlinkLEDTask(void *argument)
   for(;;)
   {
   	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+  	imu.data_ready_flag = 0; // reset here
     osDelay(LED_TIME_MS);
   }
 
@@ -486,12 +513,8 @@ void LogOutputTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-//  	if (imu.data_ready_flag && !imu.dma_rx_flag)
-//		{
-//			MPU6050_Read_DMA(&imu);
-//		}
-
-  	uart.log_buf_len = sprintf(uart.log_buf, "value: %.3f\r\n", -comp_filter.roll_rad * RAD_TO_DEG);
+//  	uart.log_buf_len = sprintf(uart.log_buf, "value: %.3f\r\n", -comp_filter.roll_rad * RAD_TO_DEG);
+  	uart.log_buf_len = sprintf(uart.log_buf, "data ready flag: %d\r\n", imu.data_ready_flag);
   	HAL_UART_Transmit(&huart2, (uint8_t *)uart.log_buf, uart.log_buf_len, HAL_MAX_DELAY);
     osDelay(LOG_TIME_MS);
   }
@@ -515,7 +538,13 @@ void ReadIMUTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+  	xSemaphoreTake(bin_sem, portMAX_DELAY);
+
+		if (imu.data_ready_flag && !imu.dma_rx_flag)
+		{
+			MPU6050_Read_DMA(&imu);
+		}
+    osDelay(SAMPLE_TIME_MS);
   }
 
   // In case we accidentally exit from task loop

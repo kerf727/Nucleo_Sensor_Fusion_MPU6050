@@ -7,7 +7,7 @@
 ../Core/Src/main.c:388:13:MX_DMA_Init	16	static
 ../Core/Src/main.c:409:13:MX_GPIO_Init	40	static
 ../Core/Src/main.c:460:6:BlinkLEDTask	16	static
-../Core/Src/main.c:483:6:LogOutputTask	16	static
-../Core/Src/main.c:512:6:ReadIMUTask	16	static
-../Core/Src/main.c:535:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:552:6:Error_Handler	8	static,ignoring_inline_asm
+../Core/Src/main.c:484:6:LogOutputTask	16	static
+../Core/Src/main.c:509:6:ReadIMUTask	16	static
+../Core/Src/main.c:536:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:553:6:Error_Handler	8	static,ignoring_inline_asm
