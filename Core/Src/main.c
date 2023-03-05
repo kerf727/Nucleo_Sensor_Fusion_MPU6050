@@ -107,9 +107,7 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
 	if (hi2c->Instance == hi2c1.Instance)
 	{
-		MPU6050_Process_Data(&imu);
-		CompFilterRollPitch_Update(&comp_filter, imu.acc_mps2, imu.gyr_rps);
-		imu.dma_rx_flag = 0;
+		imu.i2c_complete = 1;
 	}
 }
 
@@ -165,47 +163,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  	/*
-  	// Debugging tool - force unstuck
-  	if (imu.data_ready_flag && imu.dma_rx_flag)
+  	if (imu.i2c_complete)
   	{
-  		stuck_counter++;
-//  		UART_print(&uart, "sc++");
-  		UART_print_arg(&uart, "sc:%d\r\n", stuck_counter);
-  		if (stuck_counter == 1000)
-  		{
-  			UART_println(&uart, "Forced unstuck.");
-  			stuck_counter = 0;
-  			imu.data_ready_flag = 1;
-  			imu.dma_rx_flag = 0;
-  		}
-  	}
+  		MPU6050_Process_Data(&imu);
+			CompFilterRollPitch_Update(&comp_filter, imu.acc_mps2, imu.gyr_rps);
 
-  	// Reset in case it becomes nan
-  	if (comp_filter.roll_rad == NAN || comp_filter.pitch_rad == NAN)
-  	{
-  		comp_filter.roll_rad  = 0.0f;
-  		comp_filter.pitch_rad = 0.0f;
+			imu.dma_rx_flag = 0;
+			imu.i2c_complete = 0;
   	}
-  	*/
 
   	if (imu.data_ready_flag && !imu.dma_rx_flag)
 		{
 			MPU6050_Read_DMA(&imu);
-			// Debugging
-//			stuck_counter = 0;
 		}
 
   	if (HAL_GetTick() - timer_log >= LOG_TIME_MS)
 		{
-//			UART_print_sensor(&uart, imu.acc_mps2);
-
-//  		float angles[3] = {-comp_filter.roll_rad  * RAD_TO_DEG, // reverse polarity for convenience
-//  											  comp_filter.pitch_rad * RAD_TO_DEG,
-//												 (float) timer_log / 1000};
-//			UART_print_sensor(&uart, angles);
 			UART_print_float(&uart, -comp_filter.roll_rad * RAD_TO_DEG);
-
 			timer_log = HAL_GetTick();
 		}
 

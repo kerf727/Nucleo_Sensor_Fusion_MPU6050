@@ -20,6 +20,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 	}
 	imu->dma_rx_flag = 0;
 	imu->data_ready_flag = 0;
+	imu->i2c_complete = 0;
 	imu->success_flag = 1;
 
 	// XL data in m/s^2
@@ -92,6 +93,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 
 	/* Register Setup */
 
+	// DLPF_CONFIG = 2: ODR = 1kHz, XL BW = 94Hz, Gyro BW = 98Hz
 	write_data = 0x02;
 	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_CONFIG, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
 	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
@@ -99,6 +101,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
+	// INT_RD_CLEAR = 1: interrupt status bits are cleared on any read operation
 	write_data = 0x10;
 	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_INT_PIN_CFG, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
 	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
@@ -106,6 +109,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
+	// DATA_RDY_EN = 1: enables the data ready interrupt
 	write_data = 0x01;
 	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_INT_ENABLE, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
 	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
@@ -113,6 +117,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
+	// SLEEP = 0: disable sleep mode
 	write_data = 0x00;
 	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_PWR_MGMT_1, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
 	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
