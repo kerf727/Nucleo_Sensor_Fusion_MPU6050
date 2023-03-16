@@ -25,10 +25,10 @@ typedef struct
 
 	// DMA
 	uint8_t rx_buf[14];
-	// TODO: is volatile keyword necessary? test to find out
-	volatile uint8_t dma_rx_flag; // flag to indicate that data is being currently ready by DMA
+	volatile uint8_t dma_rx_flag;
 	volatile uint8_t data_ready_flag;
 	volatile uint8_t i2c_complete;
+
 	volatile uint8_t success_flag;
 
 	// XL data in m/s^2

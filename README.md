@@ -4,3 +4,5 @@
 - Sensor fusion algorithm (complementary filter) estimates roll and pitch angles of MPU6050 IMU
 - Implements a MPU6050 low-level C driver using I2C and DMA for efficient data acquisition
 - Calibration branch used for conveniently recording averages of datapoints to calibrate IMU readings before feeding into filter
+
+![image](media/nucleo_mpu6050_breadboard.jpg)
