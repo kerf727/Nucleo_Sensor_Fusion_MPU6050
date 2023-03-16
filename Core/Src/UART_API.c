@@ -96,7 +96,7 @@ void UART_log_error(UART_API *uart, HAL_StatusTypeDef status, char *error_msg)
 {
 	switch(status)
 	{
-	case(HAL_OK): // TODO get rid of this case?
+	case(HAL_OK):
 		uart->log_buf_len = sprintf(uart->log_buf, "%s\r\n", error_msg);
 		break;
 	case(HAL_ERROR):

@@ -5,6 +5,15 @@
 #define DEFAULT_ACC_SCALE_LSB_G			16384.0f
 #define DEFAULT_GYR_SCALE_LSB_DPS		131.0f
 
+
+
+/*
+ * @brief Initialize MPU6050
+ * @param MPU6050 IMU struct
+ * @param I2C handle
+ * @param AD0 Pin Value (changes I2C address depending on whether it's tied low or high)
+ * @retval Error code
+ */
 uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pin_Value)
 {
 	/* Set Struct Parameters */
@@ -21,6 +30,7 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 	imu->dma_rx_flag = 0;
 	imu->data_ready_flag = 0;
 	imu->i2c_complete = 0;
+
 	imu->success_flag = 1;
 
 	// XL data in m/s^2
@@ -28,99 +38,81 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 	imu->acc_mps2[1] = 0.0f;
 	imu->acc_mps2[2] = 0.0f;
 
-	// XL sensitivity according to datasheet in +/-2g range is 16384 LSB/g
-
-	// Board 1 coefficients
-	imu->acc_scale[0] = 0.9949237f;
-	imu->acc_scale[1] = 0.9988063f;
-	imu->acc_scale[2] = 0.9943320f;
-	imu->acc_bias[0]  = -6.5000024f;
-	imu->acc_bias[1]  = -67.4999988f;
-	imu->acc_bias[2]  = -531.5000136f;
-	imu->acc_yz_rot   = 0.0003194f;
-	imu->acc_zy_rot   = -0.0021295f;
-	imu->acc_zx_rot   = 0.0064480f;
-
-	// Board 2 coefficients
-//	imu->acc_scale[0] = 0.9949237f;
-//	imu->acc_scale[1] = 0.9988063f;
-//	imu->acc_scale[2] = 0.9943320f;
-//	imu->acc_bias[0]  = -6.5000024f;
-//	imu->acc_bias[1]  = -67.4999988f;
-//	imu->acc_bias[2]  = -531.5000136f;
-//	imu->acc_yz_rot   = 0.0003194f;
-//	imu->acc_zy_rot   = -0.0021295f;
-//	imu->acc_zx_rot   = 0.0064480f;
-
 	// Temperature data
-	imu->temp_C = 0.0f;
-
+	imu->temp_C = 0.0f; 
+	
 	// Gyro data in rps
 	imu->gyr_rps[0] = 0.0f;
 	imu->gyr_rps[1] = 0.0f;
 	imu->gyr_rps[2] = 0.0f;
 
+	// XL sensitivity according to datasheet in +/-2g range is 16384 LSB/g
+	imu->acc_scale[0] = 0.9948657f;
+	imu->acc_scale[1] = 0.9986902f;
+	imu->acc_scale[2] = 0.9947902f;
+	imu->acc_bias[0]  = -10.8274112f;  // LSBs
+	imu->acc_bias[1]  = -66.3366318f;  // LSBs
+	imu->acc_bias[2]  = -549.9550669f; // LSBs
+	imu->acc_yz_rot   = -0.0003177f;
+	imu->acc_zy_rot   = -0.0027145f;
+	imu->acc_zx_rot   = 0.0060455f;
+
 	// Gyro sensitivity according to datasheet in +/-250dps range is 131 LSB/dps
 	imu->gyr_scale[0] = 1.0f;
 	imu->gyr_scale[1] = 1.0f;
 	imu->gyr_scale[2] = 1.0f;
-	imu->gyr_bias[0]  = 0.0f;
-	imu->gyr_bias[1]  = 0.0f;
-	imu->gyr_bias[2]  = 0.0f;
+	imu->gyr_bias[0]  = -289.752f;    // LSBs
+	imu->gyr_bias[1]  = 249.255f;     // LSBs
+	imu->gyr_bias[2]  = 7.745f;       // LSBs
 
 	/* Check WHO_AM_I ID */
 
 	HAL_StatusTypeDef status;
 	uint8_t write_data;
 
-	status = HAL_I2C_Mem_Read(imu->i2c_handle, imu->device_addr, MPU6050_REG_WHO_AM_I, I2C_MEMADD_SIZE_8BIT, imu->rx_buf, 1, HAL_MAX_DELAY);
-	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
+	status = MPU6050_Read_Register_Polling(imu, MPU6050_REG_WHO_AM_I, imu->rx_buf);
 	HAL_Delay(10);
 
 	if(status != HAL_OK)
 	{
 		UART_println(&uart, "WHO_AM_I Read Failed.");
 		imu->success_flag = 0;
-		return 255; // TODO return err_num?
+		return 255;
 	}
 
 	if (!(imu->rx_buf[0] == MPU6050_WHO_AM_I_ID || imu->rx_buf[0] == MPU6050_WHO_AM_I_ID_ALT))
 	{
 		UART_println(&uart, "WHO_AM_I ID Check Failed.");
 		imu->success_flag = 0;
-		return 255; // TODO return err_num?
+		return 255;
 	}
 
 	/* Register Setup */
 
 	// DLPF_CONFIG = 2: ODR = 1kHz, XL BW = 94Hz, Gyro BW = 98Hz
 	write_data = 0x02;
-	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_CONFIG, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
-	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
+	status = MPU6050_Write_Register_Polling(imu, MPU6050_REG_CONFIG, &write_data);
 	if (status != HAL_OK)
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
 	// INT_RD_CLEAR = 1: interrupt status bits are cleared on any read operation
 	write_data = 0x10;
-	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_INT_PIN_CFG, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
-	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
+	status = MPU6050_Write_Register_Polling(imu, MPU6050_REG_INT_PIN_CFG, &write_data);
 	if (status != HAL_OK)
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
 	// DATA_RDY_EN = 1: enables the data ready interrupt
 	write_data = 0x01;
-	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_INT_ENABLE, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
-	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
+	status = MPU6050_Write_Register_Polling(imu, MPU6050_REG_INT_ENABLE, &write_data);
 	if (status != HAL_OK)
 		imu->success_flag = 0;
 	HAL_Delay(5);
 
 	// SLEEP = 0: disable sleep mode
 	write_data = 0x00;
-	status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, MPU6050_REG_PWR_MGMT_1, I2C_MEMADD_SIZE_8BIT, &write_data, 1, HAL_MAX_DELAY);
-	while (HAL_I2C_IsDeviceReady(imu->i2c_handle, imu->device_addr, 1, HAL_MAX_DELAY) != HAL_OK);
+	status = MPU6050_Write_Register_Polling(imu, MPU6050_REG_PWR_MGMT_1, &write_data);
 	if (status != HAL_OK)
 		imu->success_flag = 0;
 	HAL_Delay(5);
@@ -137,6 +129,13 @@ uint8_t MPU6050_Init(MPU6050 *imu, I2C_HandleTypeDef *i2c_handle, uint8_t AD0_Pi
 	return 0;
 }
 
+
+
+/*
+ * @brief Read Sensor Data with I2C DMA
+ * @param MPU6050 IMU struct
+ * @retval Error code
+ */
 uint8_t MPU6050_Read_DMA(MPU6050 *imu)
 {
 	HAL_StatusTypeDef status;
@@ -147,13 +146,20 @@ uint8_t MPU6050_Read_DMA(MPU6050 *imu)
 		UART_log_error(&uart, status, "DMA Read Failed.");
 	}
 
-//	imu->dma_rx_flag = (status == HAL_OK);
 	imu->dma_rx_flag = 1;
 	imu->data_ready_flag = 0;
 
 	return 0;
 }
 
+
+
+
+/*
+ * @brief Process Sensor Data
+ * @param MPU6050 IMU struct
+ * @retval None
+ */
 void MPU6050_Process_Data(MPU6050 *imu)
 {
 	/* Read Accelerometer */
@@ -176,9 +182,9 @@ void MPU6050_Process_Data(MPU6050 *imu)
 	imu->acc_mps2[0] *= 1.0f / DEFAULT_ACC_SCALE_LSB_G;
 	imu->acc_mps2[1] *= 1.0f / DEFAULT_ACC_SCALE_LSB_G;
 	imu->acc_mps2[2] *= 1.0f / DEFAULT_ACC_SCALE_LSB_G;
-//	imu->acc_mps2[0] *= G_MPS2 / DEFAULT_ACC_SCALE_LSB_G;
-//	imu->acc_mps2[1] *= G_MPS2 / DEFAULT_ACC_SCALE_LSB_G;
-//	imu->acc_mps2[2] *= G_MPS2 / DEFAULT_ACC_SCALE_LSB_G;
+//	imu->acc_mps2[0] *= G_MPS2;
+//	imu->acc_mps2[1] *= G_MPS2;
+//	imu->acc_mps2[2] *= G_MPS2;
 
 	/* Read Temperature */
 
@@ -195,9 +201,6 @@ void MPU6050_Process_Data(MPU6050 *imu)
 	imu->gyr_rps[1] = imu->gyr_scale[1] * ((float) gyr_raw_signed[1] + imu->gyr_bias[1]);
 	imu->gyr_rps[2] = imu->gyr_scale[2] * ((float) gyr_raw_signed[2] + imu->gyr_bias[2]);
 
-//	imu->gyr_rps[0] *= 1.0f / DEFAULT_GYR_SCALE_LSB_DPS;
-//	imu->gyr_rps[1] *= 1.0f / DEFAULT_GYR_SCALE_LSB_DPS;
-//	imu->gyr_rps[2] *= 1.0f / DEFAULT_GYR_SCALE_LSB_DPS;
 	imu->gyr_rps[0] *= DEG_TO_RAD / DEFAULT_GYR_SCALE_LSB_DPS;
 	imu->gyr_rps[1] *= DEG_TO_RAD / DEFAULT_GYR_SCALE_LSB_DPS;
 	imu->gyr_rps[2] *= DEG_TO_RAD / DEFAULT_GYR_SCALE_LSB_DPS;
@@ -205,6 +208,13 @@ void MPU6050_Process_Data(MPU6050 *imu)
 
 
 
+/*
+ * @brief I2C Read Register via Polling
+ * @param MPU6050 IMU struct
+ * @param MPU6050 register address byte
+ * @param MPU6050 read data value byte
+ * @retval HAL Status
+ */
 HAL_StatusTypeDef MPU6050_Read_Register_Polling(MPU6050 *imu, uint8_t reg, uint8_t *data)
 {
 	HAL_StatusTypeDef status = HAL_I2C_Mem_Read(imu->i2c_handle, imu->device_addr, reg, I2C_MEMADD_SIZE_8BIT, data, 1, HAL_MAX_DELAY);
@@ -214,6 +224,14 @@ HAL_StatusTypeDef MPU6050_Read_Register_Polling(MPU6050 *imu, uint8_t reg, uint8
 
 
 
+/*
+ * @brief I2C Read Multiple Registers via Polling
+ * @param MPU6050 IMU struct
+ * @param MPU6050 register address byte
+ * @param MPU6050 read data value byte
+ * @param length: number of consecutive addresses to read
+ * @retval HAL Status
+ */
 HAL_StatusTypeDef MPU6050_Read_Registers_Polling(MPU6050 *imu, uint8_t reg, uint8_t *data, uint8_t length)
 {
 	HAL_StatusTypeDef status = HAL_I2C_Mem_Read(imu->i2c_handle, imu->device_addr, reg, I2C_MEMADD_SIZE_8BIT, data, length, HAL_MAX_DELAY);
@@ -223,6 +241,13 @@ HAL_StatusTypeDef MPU6050_Read_Registers_Polling(MPU6050 *imu, uint8_t reg, uint
 
 
 
+/*
+ * @brief I2C Write Register via Polling
+ * @param MPU6050 IMU struct
+ * @param MPU6050 register address byte
+ * @param MPU6050 write data value byte
+ * @retval HAL Status
+ */
 HAL_StatusTypeDef MPU6050_Write_Register_Polling(MPU6050 *imu, uint8_t reg, uint8_t *data)
 {
 	HAL_StatusTypeDef status = HAL_I2C_Mem_Write(imu->i2c_handle, imu->device_addr, reg, I2C_MEMADD_SIZE_8BIT, data, 1, HAL_MAX_DELAY);

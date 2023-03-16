@@ -1,5 +1,16 @@
 #include "CompFilterRollPitch.h"
 
+
+
+/*
+ * @brief Initialize the Complementary Filter
+ * @param Filter struct
+ * @param Complementary Filter alpha parameter
+ * @param Sample Time dt
+ * @param Accelerometer LPF alpha parameter
+ * @param Gyroscope LPF alpha parameter
+ * @retval None
+ */
 void CompFilterRollPitch_Init(CompFilterRollPitch *filt, float comp_alpha, float sample_time_ms, float lpf_acc_alpha, float lpf_gyr_alpha)
 {
 	// Set struct parameters
@@ -17,6 +28,15 @@ void CompFilterRollPitch_Init(CompFilterRollPitch *filt, float comp_alpha, float
 	FirstOrderIIR_Init(&filt->lpf_gyr[2], lpf_gyr_alpha);
 }
 
+
+
+/*
+ * @brief Update the Complementary Filter Output Angles
+ * @param Filter struct
+ * @param 3-axis Accelerometer values
+ * @param 3-axis Gyroscope values
+ * @retval None
+ */
 void CompFilterRollPitch_Update(CompFilterRollPitch *filt, float *acc_mps2, float *gyr_rps)
 {
 	// Filter XL and Gyro measurements
@@ -35,8 +55,7 @@ void CompFilterRollPitch_Update(CompFilterRollPitch *filt, float *acc_mps2, floa
 
 	// Estimate angles using filtered XL measurements (units cancel out)
 	float roll_acc_rad  = atan2f(ay_mps2 , az_mps2);
-	float pitch_acc_rad =  asinf(ax_mps2 / 1.0f);
-//	float pitch_acc_rad =  asinf(ax_mps2 / G_MPS2);
+	float pitch_acc_rad =  asinf(ax_mps2 / 1.0f); // 1.0f for 1 gee field
 
 	// Transform body rates to Euler rates (gyro units need to be in radians per second)
 	float roll_dot_rad  = p_rps + tanf(filt->pitch_rad) * (sinf(filt->roll_rad) * q_rps + cosf(filt->roll_rad) * r_rps);
